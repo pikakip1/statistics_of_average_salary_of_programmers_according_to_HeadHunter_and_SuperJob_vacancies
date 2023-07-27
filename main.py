@@ -2,11 +2,10 @@ import requests
 import os
 from dotenv import load_dotenv
 from terminaltables import AsciiTable
+from datetime import date, timedelta
 
 
-def predict_rub_salary(vacancy):
-    start_salary, finally_salary = vacancy['salary']['from'], vacancy['salary']['to']
-
+def predict_rub_salary(start_salary, finally_salary):
     if all([start_salary, finally_salary]):
         return (start_salary + finally_salary) / 2
     if start_salary:
@@ -15,18 +14,21 @@ def predict_rub_salary(vacancy):
 
 
 def get_vacancies(language, pages, per_page):
+
     url = f'https://api.hh.ru/vacancies'
     vacancies = []
+    date_start = date.today() - timedelta(days=31)
+    moscow_code = 1
 
     for page in range(pages):
         headers = {'User-Agent': 'HH-User-Agent'}
         params = {
             'text': f'Программист {language}',
-            'area': 1,
+            'area': moscow_code,
             'page': page,
             'per_page': per_page,
             'currency': 'RUR',
-            'date_from': '2023-06-08T21:17:21+0400',
+            'date_from': date_start,
 
         }
 
@@ -35,24 +37,29 @@ def get_vacancies(language, pages, per_page):
     return vacancies
 
 
-def get_professional_statistics(list_replies, language):
+def get_professional_statistics(hh_replies, language):
     vacancy_count = 0
     average_salaries = []
-    statistic_vacancy = {language: {}}
-    statistic_vacancy[language].setdefault('vacancies_found', list_replies[0]['found'])
 
-    for reply in list_replies:
-        for vacancy in reply['items']:
+    for hh_reply in hh_replies:
+        for vacancy in hh_reply['items']:
             if vacancy['salary'] and vacancy['salary']['currency'] == 'RUR':
                 vacancy_count += 1
-                average_salaries.append(predict_rub_salary(vacancy))
+                start_salary, finally_salary = vacancy['salary']['from'], vacancy['salary']['to']
+                average_salary = predict_rub_salary(start_salary, finally_salary)
+                average_salaries.append(average_salary)
 
-    statistic_vacancy[language].setdefault('average_salary', int(sum(average_salaries) / len(average_salaries)))
-    statistic_vacancy[language].setdefault('vacancies_processed', vacancy_count)
-    return statistic_vacancy
+    vacancy_statistic = {
+        language: {
+            'vacancies_processed': vacancy_count,
+            'average_salary': int(sum(average_salaries) / len(average_salaries)),
+            'vacancies_found': hh_replies[0]['found']
+        }
+    }
+    return vacancy_statistic
 
 
-def get_statistic_vacancies_hh(page=20, vacancies_count=100):
+def get_statistic_vacancies_hh(page, vacancies_count):
     languages = [
         'Python',
         'Java',
@@ -62,26 +69,15 @@ def get_statistic_vacancies_hh(page=20, vacancies_count=100):
         'C++',
     ]
 
-    statistic_vacancies = {}
+    vacancies_statistic = {}
 
     for language in languages:
         vacancies = get_vacancies(language, page, vacancies_count)
-        statistic_vacancies.update(get_professional_statistics(vacancies, language))
-    return statistic_vacancies
+        vacancies_statistic.update(get_professional_statistics(vacancies, language))
+    return vacancies_statistic
 
 
-def predict_rub_salary_for_sj(vac):
-    start_salary, finally_salary = vac['payment_from'], vac['payment_to']
-    if all([start_salary, finally_salary]):
-        return (start_salary + finally_salary) / 2
-    if start_salary:
-        return start_salary * 1.2
-    return finally_salary * 0.8
-
-
-def get_vacancies_super_job(pages, vacancies_count):
-    load_dotenv('TOKEN.env')
-    token = os.environ['SJ_TOKEN']
+def get_vacancies_super_job(pages, vacancies_count, token):
     languages = [
         'Python',
         'Java',
@@ -91,16 +87,17 @@ def get_vacancies_super_job(pages, vacancies_count):
         'C++',
     ]
 
-    statistic_vacancies = {}
+    vacancies_statistic = {}
 
     for language in languages:
         vacancies = get_vacancies_sj(language, token, pages, vacancies_count)
-        statistic_vacancies.update(statistic_vacancies_sj(vacancies, language))
-    return statistic_vacancies
+        vacancies_statistic.update(get_statistic_vacancies_sj(vacancies, language))
+    return vacancies_statistic
 
 
-def get_vacancies_sj(language, token, pages=10, vacancies_count=100):
-    replies = []
+def get_vacancies_sj(language, token, pages, vacancies_count):
+    sj_replies = []
+    payment_from = 50000
 
     for page in range(pages):
         url = '	https://api.superjob.ru/2.0/vacancies/'
@@ -110,76 +107,100 @@ def get_vacancies_sj(language, token, pages=10, vacancies_count=100):
         params = {
             'keyword': profession_name,
             'town': 'Москва',
-            'payment_from': 50000,
+            'payment_from': payment_from,
             'page': page,
             'count': vacancies_count
         }
 
         response = requests.get(url, headers=headers, params=params)
         response.raise_for_status()
-        if not response.json()['objects']:
+        sj_vacancies = response.json()
+
+        if not sj_vacancies['objects']:
             break
 
-        replies.append(response.json())
-    return replies
+        sj_replies.append(sj_vacancies)
+    return sj_replies
 
 
-def statistic_vacancies_sj(replies, language):
-    statistic_vacancies = {language: {}}
-    statistic_vacancies[language].setdefault('vacancies_found', replies[0]['total'])
+def get_statistic_vacancies_sj(sj_replies, language):
     vacancies_processed = 0
     average_salary = []
-
-    for reply in replies:
-        for vacancy in reply['objects']:
-            salary = predict_rub_salary_for_sj(vacancy)
+    for sj_reply in sj_replies:
+        for vacancy in sj_reply['objects']:
+            start_salary, finally_salary = vacancy['payment_from'], vacancy['payment_to']
+            salary = predict_rub_salary(start_salary, finally_salary)
             if salary:
                 vacancies_processed += 1
                 average_salary.append(salary)
 
-    statistic_vacancies[language].setdefault('vacancies_processed', vacancies_processed)
-    statistic_vacancies[language].setdefault('average_salary', int(sum(average_salary) / len(average_salary)))
-    return statistic_vacancies
+    vacancies_statistic = {
+        language: {
+            'vacancies_found': sj_replies[0]['total'],
+            'average_salary': int(sum(average_salary) / len(average_salary)),
+            'vacancies_processed': vacancies_processed
+        }
+    }
+
+    return vacancies_statistic
 
 
-def get_table_statistic_sj(page, vacancies_count):
-    sj_statistic = get_vacancies_super_job(page, vacancies_count)
-
+def get_table_statistic_sj(sj_statistic):
     title = 'SuperJob Moscow'
-    table_data = [['Язык программирования', 'Вакансий найдено', 'Вакансий обработано', 'Средняя зарплата']]
+    header = ['Язык программирования', 'Вакансий найдено', 'Вакансий обработано', 'Средняя зарплата']
+    table_statistic = [header]
+
     for language in sj_statistic:
-        table_data.append(
-            [language,
-             sj_statistic[language]['vacancies_found'],
-             sj_statistic[language]['vacancies_processed'],
-             sj_statistic[language]['average_salary']
-             ])
+        string_table = [
+            language,
+            sj_statistic[language]['vacancies_found'],
+            sj_statistic[language]['vacancies_processed'],
+            sj_statistic[language]['average_salary']
+        ]
 
-    table = AsciiTable(table_data, title)
-    print(table.table)
+        table_statistic.append(string_table)
+
+    table = AsciiTable(table_statistic, title)
+    return table
 
 
-def get_table_statistic_hh(page, vacancies_count):
-    hh_statistic = get_statistic_vacancies_hh(page, vacancies_count)
-
+def get_table_statistic_hh(hh_statistic):
     title = 'HeadHunter Moscow'
-    table_data = [['Язык программирования', 'Вакансий найдено', 'Вакансий обработано', 'Средняя зарплата']]
-    for language in hh_statistic:
-        table_data.append(
-            [language,
-             hh_statistic[language]['vacancies_found'],
-             hh_statistic[language]['vacancies_processed'],
-             hh_statistic[language]['average_salary']
-             ])
+    header = ['Язык программирования', 'Вакансий найдено', 'Вакансий обработано', 'Средняя зарплата']
+    table_statistic = [header]
 
-    table = AsciiTable(table_data, title)
-    print(table.table)
+    for language in hh_statistic:
+        string_table = [
+            language,
+            hh_statistic[language]['vacancies_found'],
+            hh_statistic[language]['vacancies_processed'],
+            hh_statistic[language]['average_salary']
+        ]
+
+        table_statistic.append(string_table)
+
+    table = AsciiTable(table_statistic, title)
+    return table
 
 
 def main():
-    get_table_statistic_hh(20, 100)
-    get_table_statistic_sj(5, 100)
+    sj_token = os.environ['SJ_TOKEN']
+
+    hh_pages_check, hh_vacancies_in_page = 20, 100
+    sj_pages_check, sj_vacancies_in_page = 5, 100
+
+    hh_statistic = get_statistic_vacancies_hh(hh_pages_check, hh_vacancies_in_page)
+    hh_table_statistic = get_table_statistic_hh(hh_statistic)
+
+    sj_statistic = get_vacancies_super_job(sj_pages_check, sj_vacancies_in_page, sj_token)
+    sj_table_statistic = get_table_statistic_sj(sj_statistic)
+
+    return hh_table_statistic, sj_table_statistic
 
 
 if __name__ == '__main__':
-    main()
+    load_dotenv('TOKEN.env')
+
+    hh_table_statistics, sj_table_statistics = main()
+    print(hh_table_statistics.table)
+    print(sj_table_statistics.table)
