@@ -145,36 +145,17 @@ def get_statistic_vacancies_sj(sj_replies, language):
     return vacancies_statistic
 
 
-def get_table_statistic_sj(sj_statistic):
-    title = 'SuperJob Moscow'
-    header = ['Язык программирования', 'Вакансий найдено', 'Вакансий обработано', 'Средняя зарплата']
-    table_statistic = [header]
-
-    for language in sj_statistic:
-        string_table = [
-            language,
-            sj_statistic[language]['vacancies_found'],
-            sj_statistic[language]['vacancies_processed'],
-            sj_statistic[language]['average_salary']
-        ]
-
-        table_statistic.append(string_table)
-
-    table = AsciiTable(table_statistic, title)
-    return table
-
-
-def get_table_statistic_hh(hh_statistic):
+def get_table_statistic(vacancies_statistic):
     title = 'HeadHunter Moscow'
     header = ['Язык программирования', 'Вакансий найдено', 'Вакансий обработано', 'Средняя зарплата']
     table_statistic = [header]
 
-    for language in hh_statistic:
+    for language in vacancies_statistic:
         string_table = [
             language,
-            hh_statistic[language]['vacancies_found'],
-            hh_statistic[language]['vacancies_processed'],
-            hh_statistic[language]['average_salary']
+            vacancies_statistic[language]['vacancies_found'],
+            vacancies_statistic[language]['vacancies_processed'],
+            vacancies_statistic[language]['average_salary']
         ]
 
         table_statistic.append(string_table)
