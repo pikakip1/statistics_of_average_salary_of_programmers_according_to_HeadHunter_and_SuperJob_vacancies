@@ -13,53 +13,67 @@ def predict_rub_salary(start_salary, finally_salary):
     return finally_salary * 0.8
 
 
-def get_vacancies(language, pages, per_page):
+def get_statistic_vacancies_hh(vacancies_on_the_page):
+    languages = [
+        'Python',
+        'Java',
+        'Javascript',
+        'Typescript',
+        'Go',
+        'C++',
+    ]
 
+    vacancies_statistic = {}
     url = f'https://api.hh.ru/vacancies'
-    vacancies = []
+    headers = {'User-Agent': 'HH-User-Agent'}
+    params = {'per_page': vacancies_on_the_page}
+    pages = requests.get(url, params=params, headers=headers).json()['pages']
+
     date_start = date.today() - timedelta(days=31)
     moscow_code = 1
 
-    for page in range(pages):
-        headers = {'User-Agent': 'HH-User-Agent'}
-        params = {
-            'text': f'Программист {language}',
-            'area': moscow_code,
-            'page': page,
-            'per_page': per_page,
-            'currency': 'RUR',
-            'date_from': date_start,
+    for language in languages:
+        vacancies = []
+        for page in range(pages):
+            headers = {'User-Agent': 'HH-User-Agent'}
+            params = {
+                'text': f'Программист {language}',
+                'area': moscow_code,
+                'page': page,
+                'per_page': vacancies_on_the_page,
+                'currency': 'RUR',
+                'date_from': date_start,
 
-        }
+            }
 
-        response = requests.get(url, params=params, headers=headers)
-        vacancies.append(response.json())
-    return vacancies
+            response = requests.get(url, params=params, headers=headers)
+            response.raise_for_status()
+            vacancies.append(response.json())
+        vacancies_statistic[language] = create_statistic_vacancies_hh(vacancies)
+
+    return vacancies_statistic
 
 
-def get_professional_statistics(hh_replies, language):
-    vacancy_count = 0
+def create_statistic_vacancies_hh(all_vacancies_specialty):
     average_salaries = []
 
-    for hh_reply in hh_replies:
-        for vacancy in hh_reply['items']:
-            if vacancy['salary'] and vacancy['salary']['currency'] == 'RUR':
-                vacancy_count += 1
-                start_salary, finally_salary = vacancy['salary']['from'], vacancy['salary']['to']
-                average_salary = predict_rub_salary(start_salary, finally_salary)
-                average_salaries.append(average_salary)
+    for jobs_on_one_page in all_vacancies_specialty:
+        for vacancy in jobs_on_one_page['items']:
+            if not vacancy['salary'] or vacancy['salary']['currency'] != 'RUR':
+                continue
+            start_salary, finally_salary = vacancy['salary']['from'], vacancy['salary']['to']
+            average_salary = predict_rub_salary(start_salary, finally_salary)
+            average_salaries.append(average_salary)
 
     vacancy_statistic = {
-        language: {
-            'vacancies_processed': vacancy_count,
-            'average_salary': int(sum(average_salaries) / len(average_salaries)),
-            'vacancies_found': hh_replies[0]['found']
-        }
+        'vacancies_processed': len(average_salaries),
+        'average_salary': int(sum(average_salaries) / len(average_salaries)),
+        'vacancies_found': all_vacancies_specialty[0]['found']
     }
     return vacancy_statistic
 
 
-def get_statistic_vacancies_hh(page, vacancies_count):
+def get_statistic_vacancies_sj(pages, vacancies_on_the_page, token):
     languages = [
         'Python',
         'Java',
@@ -68,78 +82,51 @@ def get_statistic_vacancies_hh(page, vacancies_count):
         'Go',
         'C++',
     ]
-
     vacancies_statistic = {}
 
-    for language in languages:
-        vacancies = get_vacancies(language, page, vacancies_count)
-        vacancies_statistic.update(get_professional_statistics(vacancies, language))
-    return vacancies_statistic
-
-
-def get_vacancies_super_job(pages, vacancies_count, token):
-    languages = [
-        'Python',
-        'Java',
-        'Javascript',
-        'Typescript',
-        'Go',
-        'C++',
-    ]
-
-    vacancies_statistic = {}
-
-    for language in languages:
-        vacancies = get_vacancies_sj(language, token, pages, vacancies_count)
-        vacancies_statistic.update(get_statistic_vacancies_sj(vacancies, language))
-    return vacancies_statistic
-
-
-def get_vacancies_sj(language, token, pages, vacancies_count):
-    sj_replies = []
     payment_from = 50000
 
-    for page in range(pages):
-        url = '	https://api.superjob.ru/2.0/vacancies/'
-        headers = {'X-Api-App-Id': token}
-        profession_name = f'{language} Программист'
+    for language in languages:
+        vacancies = []
+        for page in range(pages):
+            url = '	https://api.superjob.ru/2.0/vacancies/'
+            headers = {'X-Api-App-Id': token}
+            profession_name = f'{language} Программист'
 
-        params = {
-            'keyword': profession_name,
-            'town': 'Москва',
-            'payment_from': payment_from,
-            'page': page,
-            'count': vacancies_count
-        }
+            params = {
+                'keyword': profession_name,
+                'town': 'Москва',
+                'payment_from': payment_from,
+                'page': page,
+                'count': vacancies_on_the_page
+            }
 
-        response = requests.get(url, headers=headers, params=params)
-        response.raise_for_status()
-        sj_vacancies = response.json()
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            one_page_vacancies = response.json()
 
-        if not sj_vacancies['objects']:
-            break
+            if not one_page_vacancies['objects']:
+                break
 
-        sj_replies.append(sj_vacancies)
-    return sj_replies
+            vacancies.append(one_page_vacancies)
+        vacancies_statistic[language] = create_statistic_vacancies_sj(vacancies)
+
+    return vacancies_statistic
 
 
-def get_statistic_vacancies_sj(sj_replies, language):
-    vacancies_processed = 0
-    average_salary = []
-    for sj_reply in sj_replies:
-        for vacancy in sj_reply['objects']:
+def create_statistic_vacancies_sj(all_vacancies_specialty):
+    average_salaries = []
+    for jobs_on_one_page in all_vacancies_specialty:
+        for vacancy in jobs_on_one_page['objects']:
             start_salary, finally_salary = vacancy['payment_from'], vacancy['payment_to']
             salary = predict_rub_salary(start_salary, finally_salary)
             if salary:
-                vacancies_processed += 1
-                average_salary.append(salary)
+                average_salaries.append(salary)
 
     vacancies_statistic = {
-        language: {
-            'vacancies_found': sj_replies[0]['total'],
-            'average_salary': int(sum(average_salary) / len(average_salary)),
-            'vacancies_processed': vacancies_processed
-        }
+        'vacancies_found': all_vacancies_specialty[0]['total'],
+        'average_salary': int(sum(average_salaries) / len(average_salaries)),
+        'vacancies_processed': len(average_salaries)
     }
 
     return vacancies_statistic
@@ -184,3 +171,4 @@ if __name__ == '__main__':
     tables = main()
     print(tables[0])
     print(tables[1])
+
