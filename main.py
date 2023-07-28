@@ -184,23 +184,22 @@ def get_table_statistic_hh(hh_statistic):
 
 
 def main():
+    load_dotenv('TOKEN.env')
     sj_token = os.environ['SJ_TOKEN']
 
-    hh_pages_check, hh_vacancies_in_page = 20, 100
-    sj_pages_check, sj_vacancies_in_page = 5, 100
+    hh_vacancies_on_the_page = 100
+    sj_pages_check, sj_vacancies_on_the_page = 5, 100
 
-    hh_statistic = get_statistic_vacancies_hh(hh_pages_check, hh_vacancies_in_page)
-    hh_table_statistic = get_table_statistic_hh(hh_statistic)
+    hh_statistic = get_statistic_vacancies_hh(hh_vacancies_on_the_page)
+    hh_table_statistic = get_table_statistic(hh_statistic)
 
-    sj_statistic = get_vacancies_super_job(sj_pages_check, sj_vacancies_in_page, sj_token)
-    sj_table_statistic = get_table_statistic_sj(sj_statistic)
+    sj_statistic = get_statistic_vacancies_sj(sj_pages_check, sj_vacancies_on_the_page, sj_token)
+    sj_table_statistic = get_table_statistic(sj_statistic)
 
-    return hh_table_statistic, sj_table_statistic
+    return hh_table_statistic.table, sj_table_statistic.table
 
 
 if __name__ == '__main__':
-    load_dotenv('TOKEN.env')
-
-    hh_table_statistics, sj_table_statistics = main()
-    print(hh_table_statistics.table)
-    print(sj_table_statistics.table)
+    tables = main()
+    print(tables[0])
+    print(tables[1])
