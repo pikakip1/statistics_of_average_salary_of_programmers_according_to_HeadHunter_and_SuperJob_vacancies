@@ -67,7 +67,7 @@ def create_statistic_vacancies_hh(all_vacancies_specialty):
 
     vacancy_statistic = {
         'vacancies_processed': len(average_salaries),
-        'average_salary': int(sum(average_salaries) / len(average_salaries)),
+        'average_salary': int(sum(average_salaries) / (len(average_salaries) or 1)),
         'vacancies_found': all_vacancies_specialty[0]['found']
     }
     return vacancy_statistic
@@ -125,7 +125,7 @@ def create_statistic_vacancies_sj(all_vacancies_specialty):
 
     vacancies_statistic = {
         'vacancies_found': all_vacancies_specialty[0]['total'],
-        'average_salary': int(sum(average_salaries) / len(average_salaries)),
+        'average_salary': int(sum(average_salaries) / (len(average_salaries) or 1)),
         'vacancies_processed': len(average_salaries)
     }
 
