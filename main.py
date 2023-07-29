@@ -28,7 +28,6 @@ def get_statistic_vacancies_hh(vacancies_on_the_page):
     headers = {'User-Agent': 'HH-User-Agent'}
     params = {'per_page': vacancies_on_the_page}
     pages = requests.get(url, params=params, headers=headers).json()['pages']
-
     date_start = date.today() - timedelta(days=31)
     moscow_code = 1
 
@@ -47,7 +46,6 @@ def get_statistic_vacancies_hh(vacancies_on_the_page):
             }
 
             response = requests.get(url, params=params, headers=headers)
-            response.raise_for_status()
             vacancies.append(response.json())
         vacancies_statistic[language] = create_statistic_vacancies_hh(vacancies)
 
@@ -58,6 +56,8 @@ def create_statistic_vacancies_hh(all_vacancies_specialty):
     average_salaries = []
 
     for jobs_on_one_page in all_vacancies_specialty:
+        if jobs_on_one_page.get('items') is None:
+            continue
         for vacancy in jobs_on_one_page['items']:
             if not vacancy['salary'] or vacancy['salary']['currency'] != 'RUR':
                 continue
@@ -102,7 +102,6 @@ def get_statistic_vacancies_sj(pages, vacancies_on_the_page, token):
             }
 
             response = requests.get(url, headers=headers, params=params)
-            response.raise_for_status()
             one_page_vacancies = response.json()
 
             if not one_page_vacancies['objects']:
@@ -171,4 +170,3 @@ if __name__ == '__main__':
     tables = main()
     print(tables[0])
     print(tables[1])
-
