@@ -150,7 +150,7 @@ def get_table_statistic(vacancies_statistic):
     return table
 
 
-def main():
+if __name__ == '__main__':
     load_dotenv('TOKEN.env')
     sj_token = os.environ['SJ_TOKEN']
 
@@ -163,10 +163,5 @@ def main():
     sj_statistic = get_statistic_vacancies_sj(sj_pages_check, sj_vacancies_on_the_page, sj_token)
     sj_table_statistic = get_table_statistic(sj_statistic)
 
-    return hh_table_statistic.table, sj_table_statistic.table
-
-
-if __name__ == '__main__':
-    tables = main()
-    print(tables[0])
-    print(tables[1])
+    print(hh_table_statistic.table)
+    print(sj_table_statistic.table)
