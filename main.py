@@ -25,15 +25,14 @@ def get_statistic_vacancies_hh(vacancies_on_the_page):
 
     vacancies_statistic = {}
     url = f'https://api.hh.ru/vacancies'
-    headers = {'User-Agent': 'HH-User-Agent'}
-    params = {'per_page': vacancies_on_the_page}
-    pages = requests.get(url, params=params, headers=headers).json()['pages']
     date_start = date.today() - timedelta(days=31)
     moscow_code = 1
 
     for language in languages:
         vacancies = []
-        for page in range(pages):
+        page, end_page = 0, 1
+
+        while page != end_page + 1:
             headers = {'User-Agent': 'HH-User-Agent'}
             params = {
                 'text': f'Программист {language}',
@@ -42,11 +41,16 @@ def get_statistic_vacancies_hh(vacancies_on_the_page):
                 'per_page': vacancies_on_the_page,
                 'currency': 'RUR',
                 'date_from': date_start,
-
             }
 
             response = requests.get(url, params=params, headers=headers)
-            vacancies.append(response.json())
+            reply_hh = response.json()
+
+            if not page:
+                end_page = reply_hh['pages']
+            page += 1
+
+            vacancies.append(reply_hh)
         vacancies_statistic[language] = create_statistic_vacancies_hh(vacancies)
 
     return vacancies_statistic
@@ -54,7 +58,6 @@ def get_statistic_vacancies_hh(vacancies_on_the_page):
 
 def create_statistic_vacancies_hh(all_vacancies_specialty):
     average_salaries = []
-
     for jobs_on_one_page in all_vacancies_specialty:
         if jobs_on_one_page.get('items') is None:
             continue
