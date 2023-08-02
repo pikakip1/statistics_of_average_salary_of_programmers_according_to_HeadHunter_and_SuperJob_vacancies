@@ -100,9 +100,12 @@ def create_statistic_vacancy_sj(all_vacancies_specialty):
     for jobs_on_one_page in all_vacancies_specialty:
         for vacancy in jobs_on_one_page['objects']:
             start_salary, finally_salary = vacancy['payment_from'], vacancy['payment_to']
+
+            if not any([start_salary, finally_salary]):
+                continue
+                
             salary = predict_rub_salary(start_salary, finally_salary)
-            if salary:
-                average_salaries.append(salary)
+            average_salaries.append(salary)
 
     vacancies_statistic = {
         'vacancies_found': all_vacancies_specialty[0]['total'],
