@@ -121,12 +121,12 @@ def get_table_statistic(vacancies_statistic, company):
     header = ['Язык программирования', 'Вакансий найдено', 'Вакансий обработано', 'Средняя зарплата']
     table_statistic = [header]
 
-    for vacancy in vacancies_statistic:
+    for vacancy, statistics in vacancies_statistic.items():
         string_table = [
             vacancy,
-            vacancies_statistic[vacancy]['vacancies_found'],
-            vacancies_statistic[vacancy]['vacancies_processed'],
-            vacancies_statistic[vacancy]['average_salary']
+            statistics['vacancies_found'],
+            statistics['vacancies_processed'],
+            statistics['average_salary']
         ]
 
         table_statistic.append(string_table)
