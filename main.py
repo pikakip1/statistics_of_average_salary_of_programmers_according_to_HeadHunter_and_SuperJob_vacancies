@@ -14,7 +14,7 @@ def predict_rub_salary(start_salary, finally_salary):
     return finally_salary * 0.8
 
 
-def get_statistic_vacancy_hh(vacancies_on_the_page, vacancy):
+def get_vacancy_hh(vacancies_on_the_page, vacancy):
     url = f'https://api.hh.ru/vacancies'
     date_start = date.today() - timedelta(days=31)
     moscow_code = 1
@@ -63,7 +63,7 @@ def create_statistic_vacancies_hh(all_vacancies_specialty):
     return vacancy_statistic
 
 
-def get_statistic_vacancies_sj(vacancy, vacancies_on_the_page, token):
+def get_vacancies_sj(vacancy, vacancies_on_the_page, token):
     payment_from = 50000
     vacancies = []
     page, end_page = 0, 1
@@ -153,10 +153,10 @@ if __name__ == '__main__':
     count_vacations_in_page = 100
 
     for language in languages:
-        hh_vacancies = get_statistic_vacancy_hh(count_vacations_in_page, language)
+        hh_vacancies = get_vacancy_hh(count_vacations_in_page, language)
         hh_statistics[language] = create_statistic_vacancies_hh(hh_vacancies)
 
-        sj_vacancies = get_statistic_vacancies_sj(language, count_vacations_in_page, sj_token)
+        sj_vacancies = get_vacancies_sj(language, count_vacations_in_page, sj_token)
         sj_statistics[language] = create_statistic_vacancy_sj(sj_vacancies)
 
     hh_table_statistic = get_table_statistic(hh_statistics, 'HeadHunter')
